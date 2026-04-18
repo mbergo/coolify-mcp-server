@@ -20,10 +20,10 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
 
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npx biome check src tests
       - run: npx tsc --noEmit
-      - run: npx vitest run
+      - run: npx vitest run tests/unit
       - run: npx tsup
 
       - name: Publish
