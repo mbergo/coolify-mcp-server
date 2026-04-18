@@ -1,0 +1,21 @@
+services:
+  coolify-11d:
+    image: ghcr.io/v3ct0r/coolify-11d:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coolify-11d
+    ports:
+      - "3111:3111"
+    environment:
+      COOLIFY_BASE_URL: ${COOLIFY_BASE_URL:-https://xyz.v3ct0r.one}
+      COOLIFY_TOKEN: ${COOLIFY_TOKEN:?COOLIFY_TOKEN is required}
+      CONNECTOR_AUTH_TOKEN: ${CONNECTOR_AUTH_TOKEN:-}
+      PORT: "3111"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3111/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

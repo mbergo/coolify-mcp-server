@@ -1,0 +1,25 @@
+# ---------------------------------------------------------
+#  coolify-11d — Render Blueprint
+#  Validate: render blueprints validate render.yaml
+# ---------------------------------------------------------
+services:
+  - type: web
+    name: coolify-11d
+    runtime: docker
+    plan: starter
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/status
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "3111"
+      - key: NODE_ENV
+        value: production
+      - key: COOLIFY_BASE_URL
+        sync: false
+      - key: COOLIFY_TOKEN
+        sync: false
+      - key: CONNECTOR_AUTH_TOKEN
+        sync: false

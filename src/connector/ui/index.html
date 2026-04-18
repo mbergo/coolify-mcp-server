@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>coolify-11d · Setup</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fafafa;
+        --fg: #111;
+        --muted: #666;
+        --border: #ddd;
+        --accent: #0066ff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e0e10;
+          --fg: #eee;
+          --muted: #999;
+          --border: #2a2a2e;
+          --accent: #58a6ff;
+        }
+      }
+      body {
+        font: 15px/1.5 system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        margin: 0;
+        padding: 2rem;
+      }
+      h1 { margin-top: 0; }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin: 1rem 0;
+        max-width: 720px;
+      }
+      code { background: rgba(127,127,127,.15); padding: 2px 5px; border-radius: 4px; }
+      .muted { color: var(--muted); }
+      pre { background: rgba(127,127,127,.08); padding: 1rem; border-radius: 6px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>coolify-11d connector</h1>
+    <p class="muted">Scaffold UI — full setup interface lands in PR #9.</p>
+
+    <div class="card">
+      <h2>Status</h2>
+      <pre id="status">loading…</pre>
+    </div>
+
+    <div class="card">
+      <h2>MCP SSE endpoint</h2>
+      <p>Add this to Claude.ai / MetaMCP / your IDE:</p>
+      <pre><code id="sseUrl"></code></pre>
+    </div>
+
+    <script>
+      document.getElementById("sseUrl").textContent =
+        location.origin + "/mcp/sse";
+      fetch("/api/status")
+        .then((r) => r.json())
+        .then((j) => {
+          document.getElementById("status").textContent = JSON.stringify(j, null, 2);
+        })
+        .catch((e) => {
+          document.getElementById("status").textContent = "error: " + e.message;
+        });
+    </script>
+  </body>
+</html>

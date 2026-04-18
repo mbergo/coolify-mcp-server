@@ -1,0 +1,37 @@
+name: Render — Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: render-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: render
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Render CLI
+        run: |
+          curl -fsSL https://github.com/render-oss/cli/releases/latest/download/cli_linux_amd64.zip -o /tmp/render.zip
+          unzip -o /tmp/render.zip -d /tmp/render-cli
+          sudo mv /tmp/render-cli/cli_* /usr/local/bin/render
+          sudo chmod +x /usr/local/bin/render
+          render --version
+
+      - name: Validate blueprint
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: render blueprints validate render.yaml
+
+      - name: Trigger deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          CI: "true"
+        run: render deploys create "$RENDER_SERVICE_ID" --wait --output json
