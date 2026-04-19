@@ -1,7 +1,20 @@
 # ---------------------------------------------------------
 #  coolify-11d — Render Blueprint
-#  Validate: render blueprints validate render.yaml
+#
+#  Validate:  render blueprints validate render.yaml
+#  Deploy:    make render-deploy
+#
+#  Preview environments (requires Professional plan or higher):
+#    - Every PR against main spawns a disposable copy of this service
+#    - Auto-destroyed on PR close/merge; expires after 3 days of inactivity
+#    - Uses the 'starter' plan to keep preview costs low
+#    - Skip a PR's preview by adding '[skip preview]' to the PR title
 # ---------------------------------------------------------
+
+previews:
+  generation: automatic
+  expireAfterDays: 3
+
 services:
   - type: web
     name: coolify-11d
@@ -12,13 +25,20 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/status
     autoDeploy: true
+    previews:
+      plan: starter # keep preview envs cheap
     envVars:
       - key: PORT
         value: "3111"
       - key: NODE_ENV
         value: production
+      # Secrets — set these in the Render Dashboard (sync:false means
+      # Render prompts for them and does NOT copy into preview envs).
+      # To share across previews, create a Render environment group
+      # and reference it with `fromGroup: coolify-11d-secrets`.
       - key: COOLIFY_BASE_URL
         sync: false
+        previewValue: "https://xyz.v3ct0r.one" # override in previews
       - key: COOLIFY_TOKEN
         sync: false
       - key: CONNECTOR_AUTH_TOKEN
