@@ -12,6 +12,9 @@
         --muted: #666;
         --border: #ddd;
         --accent: #0066ff;
+        --ok: #0a8a5f;
+        --err: #c7392e;
+        --card: #fff;
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -20,54 +23,247 @@
           --muted: #999;
           --border: #2a2a2e;
           --accent: #58a6ff;
+          --ok: #3fb98c;
+          --err: #ff6558;
+          --card: #17181c;
         }
       }
+      * { box-sizing: border-box; }
       body {
-        font: 15px/1.5 system-ui, sans-serif;
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
         background: var(--bg);
         color: var(--fg);
         margin: 0;
-        padding: 2rem;
+        padding: 2rem 1.5rem;
+        max-width: 880px;
+        margin-inline: auto;
       }
-      h1 { margin-top: 0; }
+      h1 { margin: 0 0 .5rem 0; font-size: 1.7rem; }
+      h2 { margin-top: 0; font-size: 1.1rem; letter-spacing: .02em; }
+      header p { color: var(--muted); margin: 0 0 1.5rem 0; }
       .card {
+        background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 1.25rem;
-        margin: 1rem 0;
-        max-width: 720px;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
       }
-      code { background: rgba(127,127,127,.15); padding: 2px 5px; border-radius: 4px; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+      @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+      label { display: block; font-size: .86rem; color: var(--muted); margin-bottom: .25rem; }
+      input, button, textarea {
+        font: inherit;
+        color: inherit;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: .55rem .75rem;
+        width: 100%;
+      }
+      button {
+        background: var(--accent);
+        color: white;
+        border: 0;
+        cursor: pointer;
+        font-weight: 600;
+        transition: filter .1s;
+      }
+      button:hover { filter: brightness(1.08); }
+      button.secondary {
+        background: transparent;
+        color: var(--fg);
+        border: 1px solid var(--border);
+      }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+      .row { display: flex; gap: .5rem; align-items: center; }
+      .row > input { flex: 1; }
+      code {
+        background: color-mix(in srgb, var(--muted) 15%, transparent);
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: .88em;
+      }
+      pre {
+        background: color-mix(in srgb, var(--muted) 10%, transparent);
+        padding: .9rem;
+        border-radius: 6px;
+        overflow: auto;
+        font-size: .82rem;
+        line-height: 1.5;
+        margin: .5rem 0 0 0;
+      }
       .muted { color: var(--muted); }
-      pre { background: rgba(127,127,127,.08); padding: 1rem; border-radius: 6px; overflow: auto; }
+      .ok { color: var(--ok); font-weight: 600; }
+      .err { color: var(--err); font-weight: 600; }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: .75rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+      }
+      .pill-ok { background: color-mix(in srgb, var(--ok) 20%, transparent); border-color: var(--ok); color: var(--ok); }
+      .pill-err { background: color-mix(in srgb, var(--err) 20%, transparent); border-color: var(--err); color: var(--err); }
+      details summary { cursor: pointer; font-weight: 600; }
+      details[open] summary { margin-bottom: .5rem; }
+      .tool { border-bottom: 1px dashed var(--border); padding: .5rem 0; }
+      .tool:last-child { border-bottom: 0; }
+      .tool-name { font-family: ui-monospace, monospace; font-weight: 600; }
     </style>
   </head>
   <body>
-    <h1>coolify-11d connector</h1>
-    <p class="muted">Scaffold UI — full setup interface lands in PR #9.</p>
+    <header>
+      <h1>coolify-11d connector</h1>
+      <p>Point this at your Coolify instance, copy the SSE URL into Claude.ai / MetaMCP / your IDE.</p>
+    </header>
 
-    <div class="card">
+    <section class="card">
+      <h2>Connection</h2>
+      <div class="grid grid-2">
+        <div>
+          <label for="baseUrl">Coolify base URL</label>
+          <input id="baseUrl" placeholder="https://xyz.example.com" />
+        </div>
+        <div>
+          <label for="token">API token</label>
+          <input id="token" type="password" placeholder="Paste <id>|<hash>" />
+        </div>
+      </div>
+      <div class="row" style="margin-top: 1rem; justify-content: flex-end">
+        <button class="secondary" id="btnReload">Reload saved</button>
+        <button id="btnTest">Test &amp; save</button>
+      </div>
+      <pre id="testResult" hidden></pre>
+    </section>
+
+    <section class="card">
+      <h2>MCP SSE endpoint</h2>
+      <p class="muted">Add this to Claude.ai / MetaMCP / IDE config:</p>
+      <div class="row">
+        <input id="sseUrl" readonly />
+        <button class="secondary" id="btnCopy">Copy</button>
+      </div>
+      <div id="authHint" class="muted" style="margin-top: .5rem; font-size: .85rem"></div>
+    </section>
+
+    <section class="card">
       <h2>Status</h2>
       <pre id="status">loading…</pre>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>MCP SSE endpoint</h2>
-      <p>Add this to Claude.ai / MetaMCP / your IDE:</p>
-      <pre><code id="sseUrl"></code></pre>
-    </div>
+    <section class="card">
+      <h2>Tool catalog</h2>
+      <div id="toolCount" class="muted" style="margin-bottom: .5rem"></div>
+      <details>
+        <summary>Show all tools</summary>
+        <div id="toolList"></div>
+      </details>
+    </section>
 
     <script>
-      document.getElementById("sseUrl").textContent =
-        location.origin + "/mcp/sse";
-      fetch("/api/status")
-        .then((r) => r.json())
-        .then((j) => {
-          document.getElementById("status").textContent = JSON.stringify(j, null, 2);
-        })
-        .catch((e) => {
-          document.getElementById("status").textContent = "error: " + e.message;
-        });
+      (() => {
+        const $ = (s) => document.querySelector(s);
+        const baseUrlInput = $("#baseUrl");
+        const tokenInput = $("#token");
+        const sseUrlInput = $("#sseUrl");
+
+        // ---- Pre-fill SSE URL from origin ----
+        sseUrlInput.value = location.origin + "/mcp/sse";
+
+        // ---- Helpers ----
+        const toast = (el, text, ok = true) => {
+          el.hidden = false;
+          el.textContent = text;
+          el.style.color = ok ? "var(--ok)" : "var(--err)";
+        };
+
+        async function loadSaved() {
+          try {
+            const r = await fetch("/api/status");
+            const s = await r.json();
+            if (s.coolifyBaseUrl) baseUrlInput.value = s.coolifyBaseUrl;
+          } catch (e) {
+            /* ignore */
+          }
+        }
+
+        async function refreshStatus() {
+          try {
+            const r = await fetch("/api/status");
+            const s = await r.json();
+            $("#status").textContent = JSON.stringify(s, null, 2);
+            $("#authHint").textContent = s.authRequired
+              ? "This connector requires a bearer token. Include `Authorization: Bearer <CONNECTOR_AUTH_TOKEN>` in client config."
+              : "No bearer token set — connector is bound to localhost only.";
+          } catch (e) {
+            $("#status").textContent = "error: " + e.message;
+          }
+        }
+
+        async function refreshTools() {
+          try {
+            const r = await fetch("/api/tools");
+            const { tools } = await r.json();
+            $("#toolCount").textContent =
+              tools.length + " tools registered";
+            $("#toolList").innerHTML = tools
+              .map(
+                (t) =>
+                  `<div class="tool"><div class="tool-name">${t.name}</div><div class="muted">${t.description ?? ""}</div></div>`,
+              )
+              .join("");
+          } catch (e) {
+            $("#toolCount").textContent = "error: " + e.message;
+          }
+        }
+
+        async function testAndSave() {
+          const baseUrl = baseUrlInput.value.trim();
+          const token = tokenInput.value.trim();
+          const btn = $("#btnTest");
+          const result = $("#testResult");
+          btn.disabled = true;
+          result.hidden = false;
+          result.textContent = "Testing…";
+          result.style.color = "var(--muted)";
+          try {
+            const r = await fetch("/api/test", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ base_url: baseUrl, token }),
+            });
+            const data = await r.json();
+            if (!r.ok) {
+              toast(result, JSON.stringify(data, null, 2), false);
+            } else {
+              toast(result, JSON.stringify(data, null, 2), true);
+              await refreshStatus();
+              await refreshTools();
+            }
+          } catch (e) {
+            toast(result, "error: " + e.message, false);
+          } finally {
+            btn.disabled = false;
+          }
+        }
+
+        function copyUrl() {
+          sseUrlInput.select();
+          navigator.clipboard?.writeText(sseUrlInput.value);
+          $("#btnCopy").textContent = "Copied";
+          setTimeout(() => ($("#btnCopy").textContent = "Copy"), 1500);
+        }
+
+        $("#btnTest").addEventListener("click", testAndSave);
+        $("#btnReload").addEventListener("click", loadSaved);
+        $("#btnCopy").addEventListener("click", copyUrl);
+
+        loadSaved();
+        refreshStatus();
+        refreshTools();
+        setInterval(refreshStatus, 15000);
+      })();
     </script>
   </body>
 </html>

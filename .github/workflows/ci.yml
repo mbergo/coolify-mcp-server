@@ -49,3 +49,15 @@ jobs:
           # Start MCP server, wait 1s, kill — catches import/runtime errors
           # without needing a real MCP client.
           timeout 1s node dist/mcp.js < /dev/null || [ $? -eq 124 ]
+
+      - name: Smoke test — SSE connector boots + serves status + tools
+        run: |
+          node dist/connector/server.js &
+          CONNECTOR_PID=$!
+          sleep 2
+          # localhost-only mode (no CONNECTOR_AUTH_TOKEN set)
+          curl -fsS http://127.0.0.1:3111/api/status | grep -q '"status":"ok"'
+          curl -fsS http://127.0.0.1:3111/api/tools  | grep -q '"count":'
+          curl -fsS http://127.0.0.1:3111/          | grep -q 'coolify-11d'
+          kill $CONNECTOR_PID
+          wait $CONNECTOR_PID 2>/dev/null || true
