@@ -1,4 +1,14 @@
+import { mkdirSync, copyFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { defineConfig } from "tsup";
+
+function copyUiAsset(): void {
+  const dest = "dist/connector/ui/index.html";
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync("src/connector/ui/index.html", dest);
+  // eslint-disable-next-line no-console
+  console.log("[tsup] copied setup UI → dist/connector/ui/index.html");
+}
 
 // Two builds: executables (shebang) and library (no shebang).
 export default defineConfig([
@@ -34,5 +44,8 @@ export default defineConfig([
     splitting: false,
     shims: false,
     external: ["keytar"],
+    onSuccess: async () => {
+      copyUiAsset();
+    },
   },
 ]);
