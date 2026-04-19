@@ -2,8 +2,8 @@
 
 > Persistent context for Claude sessions on this repo. Read this first on every resume.
 
-**Last updated:** PR #2 merged to branch `feat/core-foundations` and pushed to origin.
-**Next step:** PR #3 — Naming + Optimizer (rename-on-create hook, full redaction rules, collision retry, <2 KB compact assert).
+**Last updated:** PR #3 pushed on `feat/naming-optimizer`.
+**Next step:** PR #4 — Expose remaining P0/P1 coverage through api-client wrappers + wire `createWithNaming` into CLI/MCP call sites.
 
 ---
 
@@ -117,9 +117,9 @@ coolify-11d/
 | # | Scope | Status |
 |---|---|---|
 | **1** | Scaffold (layout, tooling, Makefile, Docker, Render, CI, stubs) | ✅ merged to `main` |
-| **2** | Core foundations: full api-client + retry/backoff + auto-enable + scope probe + persistent config | ✅ pushed on `feat/core-foundations` |
-| **3** | Naming engine + Optimizer: rename-on-create hook, redaction, collision policy, <2 KB compact assert | **← NEXT** |
-| 4 | Expose all P0/P1 resource coverage through api-client (extra create flavours, backups, service envs) | pending |
+| **2** | Core foundations: full api-client + retry/backoff + auto-enable + scope probe + persistent config | ✅ merged to `main` |
+| **3** | Naming engine + Optimizer: rename-on-create hook, redaction, collision policy, <2 KB compact assert | ✅ pushed on `feat/naming-optimizer` |
+| **4** | Wire `createWithNaming` into api-client create call sites + add backups/service-env coverage | **← NEXT** |
 | 5 | CLI P0 — commander commands, formatters (table/json/minimal/yaml), interactive `init` wizard | pending |
 | 6 | MCP P0 — stdio server, full tool registry, resources (`coolify://...`) | pending |
 | 7 | MCP P1 + composite tools (`status_overview`, `search_resources`, `emergency_stop_all`, …) | pending |
@@ -142,7 +142,38 @@ Pause for review after PR #5, #7, #9.
 - Source stubs: core/cli/mcp/connector enough to compile + smoke-boot
 - 18 unit tests (smoke)
 
-### PR #2 — Core foundations (commits `1c9d0a7` + `2bf1c4a` on `feat/core-foundations`)
+### PR #3 — Naming + Optimizer (on `feat/naming-optimizer`)
+
+**naming.ts** (expanded from stub):
+- `sanitizeBase()` strips non-safe chars, collapses dashes, trims, lowercases
+- `normalizeBase(name, fallback)` handles supabase-SHA + existing suffix + unsafe chars in one call
+- Reserved-names set (`coolify`, `docker`, `localhost`, `admin`, `root`, `system`)
+- Kubernetes-ish safe charset regex (`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
+- `resolveName(ctx)` — collision resolver with three policies:
+  - `error` → throw
+  - `increment` → walk 01..40 until free
+  - `prompt` → callback with first-free suggestion
+- `renameOnCreate(ctx)` — post-create PATCH hook
+- `createWithNaming(ctx)` — high-level orchestrator: create → extract UUID → resolve name → PATCH rename. Custom `extractUuid` supported for non-standard response shapes.
+- `NAMING_CONSTANTS` exposes `DEFAULT_SUFFIX`, `MIN_INDEX`, `MAX_INDEX`, `RESERVED_NAMES` for tests/UI
+
+**optimizer.ts** (expanded from stub):
+- Compact transforms for all 6 entity kinds: `application`, `database`, `service`, `deployment`, `server`, `project`
+- `toStandard()` drops heavy fields (`dockerfile`, `docker_compose_raw`, webhook secrets, persistent storage, etc.)
+- `redact()` walks nested objects + arrays, matches `SENSITIVE_KEY_RE` (password|secret|token|api_key|private_key|ssh_key|credential)
+- `redactEnvVar()` preserves key, redacts value
+- `canRevealSensitive()` gate: only reveals when `verbosity="full"` AND scope ∈ {`*`, `read:sensitive`, `view:sensitive`}
+- `optimizeEntity()` + `optimizeList()` single dispatcher
+- `assertCompactSize(v, kind)` + `COMPACT_MAX_BYTES = 2048` enforces PRD §15.2 budget
+- Compact application/database transforms verified ≤ 2 KB in unit tests
+
+**Design decision:** kept api-client pure (no rename side effects). `createWithNaming` is a separate orchestrator that CLI + MCP wrap create calls with. Keeps low-level API usable without magic.
+
+**Unit tests — 87/87 passing** (up from 46):
+- `naming.test.ts`: 30 cases (predicates, sanitization, apply, normalize, 3 collision policies, renameOnCreate, createWithNaming orchestrator, custom extractUuid)
+- `optimizer.test.ts`: 20 cases (all 6 compact transforms, toStandard, redaction w/ nested + arrays, scope gating, env var redaction, size guards, dispatcher dispatch rules)
+
+### PR #2 — Core foundations (merged to `main` as `fc7a050 Core foundations (#1)`)
 
 **api-client.ts:**
 - 13 resource namespaces (`system`, `apps`, `db`, `svc`, `deploy`, `server`, `project`, `team`, `keys`, `resources`, `github`, `cloud`, `hetzner`) mapping every PRD §6 endpoint
