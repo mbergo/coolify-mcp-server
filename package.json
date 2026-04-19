@@ -60,7 +60,8 @@
     "format": "biome format --write src tests",
     "check": "biome check src tests && tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist coverage"
+    "clean": "rm -rf dist coverage",
+    "gen:docs": "node scripts/gen-docs.mjs"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.4.1",

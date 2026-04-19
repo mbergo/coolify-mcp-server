@@ -28,10 +28,16 @@ export interface CoolifyClientOptions {
   retryBaseMs?: number;
   /** Auto-invoke `/enable` on "API disabled" errors and retry once. Default: true. */
   autoEnableApi?: boolean;
+  /** Consecutive 5xx failures that trip the circuit breaker. Default: 5. */
+  breakerThreshold?: number;
+  /** How long the breaker stays open before allowing a probe. Default: 30_000. */
+  breakerCooldownMs?: number;
   /** Custom fetch (for tests). */
   fetch?: typeof fetch;
   /** Custom sleep (for tests). */
   sleep?: (ms: number) => Promise<void>;
+  /** Custom wall clock (for tests). */
+  now?: () => number;
 }
 
 export interface CoolifyErrorShape {

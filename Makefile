@@ -63,6 +63,11 @@ test-all: test test-integration test-e2e ## Run every test suite
 coverage: ## Unit test coverage report
 	$(NODE_BIN)/vitest run --coverage
 
+# ==================== Docs ====================
+docs: ## Regenerate docs/{tools,resources,cli}.md from the built MCP + CLI
+	@test -f dist/mcp.js || $(MAKE) build
+	node scripts/gen-docs.mjs
+
 # ==================== Quality ====================
 lint: ## Biome lint
 	$(NODE_BIN)/biome lint src tests
@@ -186,7 +191,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: install install-dev dev dev-cli dev-mcp build clean start start-cli start-mcp prod \
-        test test-watch test-integration test-e2e test-all coverage \
+        test test-watch test-integration test-e2e test-all coverage docs \
         lint format check fix \
         docker-build docker-run docker-push docker-size compose-up compose-down compose-logs \
         render-install render-validate render-create render-deploy render-logs render-status \

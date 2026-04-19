@@ -1,0 +1,10 @@
+{
+  "_comment": "MetaMCP config entry — SSE via the containerized connector.",
+  "name": "coolify-11d",
+  "description": "Coolify infrastructure management",
+  "transport": "sse",
+  "url": "http://localhost:3111/mcp/sse",
+  "headers": {
+    "Authorization": "Bearer <CONNECTOR_AUTH_TOKEN>"
+  }
+}

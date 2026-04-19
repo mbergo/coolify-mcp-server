@@ -1,5 +1,9 @@
 # coolify-11d
 
+[![CI](https://github.com/mbergo/coolify-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/mbergo/coolify-mcp-server/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/ghcr.io-coolify--11d-2496ED?logo=docker)](https://github.com/mbergo/coolify-mcp-server/pkgs/container/coolify-11d)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 > Unified **CLI**, **MCP server**, and **Claude.ai SSE connector** for self-hosted [Coolify](https://coolify.io).
 
 Three surfaces, one codebase:
@@ -234,6 +238,17 @@ make render-logs                   # tail
 ```
 
 ---
+
+## Documentation
+
+Auto-generated from the live server + CLI:
+
+- [**`docs/tools.md`**](./docs/tools.md) — every MCP tool (116), grouped by category, with input schemas
+- [**`docs/resources.md`**](./docs/resources.md) — `coolify://` URIs + templates
+- [**`docs/cli.md`**](./docs/cli.md) — full CLI command tree
+- [**`docs/integrations/`**](./docs/integrations/) — per-client configs (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code, MetaMCP)
+
+Regenerate with `make docs` or `npm run gen:docs` after building.
 
 ## Project structure
 
