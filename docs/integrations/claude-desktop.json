@@ -1,0 +1,13 @@
+{
+  "_comment": "Claude Desktop — ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) | %APPDATA%/Claude/claude_desktop_config.json (Windows)",
+  "mcpServers": {
+    "coolify-11d": {
+      "command": "npx",
+      "args": ["-y", "coolify-11d-mcp"],
+      "env": {
+        "COOLIFY_BASE_URL": "https://xyz.v3ct0r.one",
+        "COOLIFY_TOKEN": "<your-token>"
+      }
+    }
+  }
+}

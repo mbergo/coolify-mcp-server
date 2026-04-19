@@ -95,8 +95,16 @@ export class CoolifyApiClient {
   private readonly autoEnableApi: boolean;
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
+  private readonly breakerThreshold: number;
+  private readonly breakerCooldownMs: number;
+  private readonly now: () => number;
 
   private apiEnableAttempted = false;
+
+  // Circuit-breaker state — trips after N consecutive 5xx, stays tripped
+  // for breakerCooldownMs before allowing one probe ("half-open").
+  private consecutiveFailures = 0;
+  private breakerOpenUntil = 0;
 
   // Resource namespaces — wired in constructor
   public readonly system: SystemNs;
@@ -124,6 +132,9 @@ export class CoolifyApiClient {
     this.autoEnableApi = opts.autoEnableApi ?? true;
     this.fetchImpl = opts.fetch ?? fetch;
     this.sleep = opts.sleep ?? defaultSleep;
+    this.breakerThreshold = opts.breakerThreshold ?? 5;
+    this.breakerCooldownMs = opts.breakerCooldownMs ?? 30_000;
+    this.now = opts.now ?? (() => Date.now());
 
     this.system = new SystemNs(this);
     this.apps = new ApplicationsNs(this);
@@ -179,12 +190,28 @@ export class CoolifyApiClient {
     path: string,
     opts: { body?: unknown; absolutePath?: boolean } = {},
   ): Promise<T> {
+    // Circuit breaker gate — fail fast when tripped.
+    if (this.breakerOpenUntil > this.now()) {
+      const remainingMs = this.breakerOpenUntil - this.now();
+      throw new CoolifyApiError({
+        status: 503,
+        endpoint: path,
+        method,
+        body: {
+          error: "circuit_open",
+          message: `Coolify API circuit breaker is open for another ${Math.ceil(remainingMs / 1000)}s after ${this.breakerThreshold} consecutive failures.`,
+        },
+      });
+    }
+
     const url = opts.absolutePath ? `${this.baseUrl}${path}` : `${this.baseUrl}/api/v1${path}`;
 
     let lastErr: unknown;
     for (let attempt = 0; attempt <= this.retries; attempt++) {
       try {
-        return await this.executeSingle<T>(method, url, path, opts.body);
+        const result = await this.executeSingle<T>(method, url, path, opts.body);
+        this.onSuccess();
+        return result;
       } catch (err) {
         lastErr = err;
 
@@ -208,6 +235,12 @@ export class CoolifyApiClient {
           }
 
           if (!isRetriableStatus(err.status)) throw err;
+
+          // Count only server-side failures toward the breaker.
+          this.onFailure();
+        } else {
+          // Network / fetch failures also count.
+          this.onFailure();
         }
 
         if (attempt === this.retries) break;
@@ -272,6 +305,25 @@ export class CoolifyApiClient {
     const exp = this.retryBaseMs * 2 ** attempt;
     const jitter = Math.random() * exp * 0.5;
     return Math.round(exp + jitter);
+  }
+
+  /** Record a success → reset breaker counters. */
+  private onSuccess(): void {
+    this.consecutiveFailures = 0;
+    this.breakerOpenUntil = 0;
+  }
+
+  /** Record a failure → maybe trip the breaker. */
+  private onFailure(): void {
+    this.consecutiveFailures++;
+    if (this.consecutiveFailures >= this.breakerThreshold) {
+      this.breakerOpenUntil = this.now() + this.breakerCooldownMs;
+    }
+  }
+
+  /** Test hook — true when the breaker is currently open. */
+  get circuitOpen(): boolean {
+    return this.breakerOpenUntil > this.now();
   }
 
   /** Test hook. */
