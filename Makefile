@@ -144,6 +144,28 @@ render-status: ## List recent deploys for the service
 	@test -n "$$RENDER_SERVICE_ID" || (echo "ERROR: RENDER_SERVICE_ID not set" && exit 1)
 	render deploys list $$RENDER_SERVICE_ID --output json
 
+# ---- Render project (workspace grouping) ----
+RENDER_PROJECT ?= mcp-servers
+
+render-project-list: ## List projects in the current workspace
+	@test -n "$$RENDER_API_KEY" || (echo "ERROR: RENDER_API_KEY not set" && exit 1)
+	curl -sS -H "Authorization: Bearer $$RENDER_API_KEY" -H "Accept: application/json" \
+		https://api.render.com/v1/projects | jq '.'
+
+render-project-create: ## Create the RENDER_PROJECT (default: mcp-servers)
+	@test -n "$$RENDER_API_KEY" || (echo "ERROR: RENDER_API_KEY not set" && exit 1)
+	curl -sS -X POST -H "Authorization: Bearer $$RENDER_API_KEY" -H "Content-Type: application/json" \
+		-d '{"name":"$(RENDER_PROJECT)"}' \
+		https://api.render.com/v1/projects | jq '.'
+
+render-project-assign: ## Move this service into RENDER_PROJECT
+	@test -n "$$RENDER_API_KEY"    || (echo "ERROR: RENDER_API_KEY not set"    && exit 1)
+	@test -n "$$RENDER_SERVICE_ID" || (echo "ERROR: RENDER_SERVICE_ID not set" && exit 1)
+	@test -n "$$RENDER_PROJECT_ID" || (echo "ERROR: RENDER_PROJECT_ID not set — grab it via 'make render-project-list'" && exit 1)
+	curl -sS -X PATCH -H "Authorization: Bearer $$RENDER_API_KEY" -H "Content-Type: application/json" \
+		-d "{\"projectId\":\"$$RENDER_PROJECT_ID\"}" \
+		https://api.render.com/v1/services/$$RENDER_SERVICE_ID | jq '.'
+
 # ==================== Release ====================
 release-patch: ## npm version patch + push tag
 	npm version patch && git push --follow-tags
@@ -168,4 +190,5 @@ help: ## Show this help
         lint format check fix \
         docker-build docker-run docker-push docker-size compose-up compose-down compose-logs \
         render-install render-validate render-create render-deploy render-logs render-status \
+        render-project-list render-project-create render-project-assign \
         release-patch release-minor release-major publish help

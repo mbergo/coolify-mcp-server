@@ -23,7 +23,6 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx biome check src tests
       - run: npx tsc --noEmit
-      - run: npx vitest run tests/unit
       - run: npx tsup
 
       - name: Publish

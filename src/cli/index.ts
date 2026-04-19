@@ -1,9 +1,5 @@
 /**
  * coolify-11d CLI entry point.
- *
- * PR #4: read commands (list/get) for apps / db / svc / servers / projects
- * with compact optimizer output + `--format` flag. Writes + interactive
- * wizard land in PR #5.
  */
 
 import { Command } from "commander";
@@ -25,12 +21,22 @@ import {
 import { resolveConfig } from "../core/config.js";
 import { searchResources } from "../core/search.js";
 import type { OutputFormat, Verbosity } from "../core/types.js";
+import { registerAppsWriteCommands } from "./commands/apps-write.js";
+import { registerConfigCommand } from "./commands/config.js";
+import { registerDbWriteCommands } from "./commands/db-write.js";
+import { runInit } from "./commands/init.js";
+import {
+  registerProjectWriteCommands,
+  registerServerWriteCommands,
+  registerSvcWriteCommands,
+} from "./commands/other-write.js";
 import { formatOutput } from "./formatters/output.js";
+import { confirmDestructive } from "./prompt.js";
 
 const program = new Command();
 
 // ----------------------------------------------------------------
-// Shared client + global options
+// Globals
 // ----------------------------------------------------------------
 
 interface GlobalOpts {
@@ -53,7 +59,7 @@ function resolveFormat(g: GlobalOpts): OutputFormat {
   return g.format ?? "table";
 }
 
-function printResult(program: Command, result: unknown) {
+function printResult(result: unknown) {
   const g = program.opts<GlobalOpts>();
   console.log(formatOutput(result, { format: resolveFormat(g) }));
 }
@@ -71,6 +77,19 @@ program
   .option("--verbose", "Alias for --verbosity=full");
 
 // ----------------------------------------------------------------
+// init + config
+// ----------------------------------------------------------------
+
+program
+  .command("init")
+  .description("Interactive setup wizard")
+  .action(async () => {
+    await runInit();
+  });
+
+registerConfigCommand(program);
+
+// ----------------------------------------------------------------
 // system
 // ----------------------------------------------------------------
 
@@ -78,31 +97,28 @@ const system = program.command("system").description("System-level operations");
 
 system
   .command("health")
-  .description("GET /api/health — ping the Coolify instance")
+  .description("GET /api/health")
   .action(async () => {
-    const c = getClient();
-    console.log(await c.health());
+    console.log(await getClient().health());
   });
 
 system
   .command("version")
-  .description("GET /api/v1/version — show Coolify version")
+  .description("GET /api/v1/version")
   .action(async () => {
-    const c = getClient();
-    console.log(await c.version());
+    console.log(await getClient().version());
   });
 
 system
   .command("enable-api")
-  .description("GET /api/v1/enable — enable API access")
+  .description("GET /api/v1/enable")
   .action(async () => {
-    const c = getClient();
-    await c.enableApi();
+    await getClient().enableApi();
     console.log("API enabled.");
   });
 
 // ----------------------------------------------------------------
-// apps
+// apps (read + lifecycle)
 // ----------------------------------------------------------------
 
 const apps = program.command("apps").description("Application management");
@@ -119,7 +135,7 @@ apps
       server_uuid: opts.server,
       project_uuid: opts.project,
     });
-    printResult(program, result);
+    printResult(result);
   });
 
 apps
@@ -128,7 +144,7 @@ apps
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getApplication(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 apps
@@ -142,7 +158,9 @@ apps
 apps
   .command("stop <uuid>")
   .description("Stop an application")
-  .action(async (uuid: string) => {
+  .option("-y, --yes", "Skip confirmation")
+  .action(async (uuid: string, opts: { yes?: boolean }) => {
+    await confirmDestructive("stop application", uuid, Boolean(opts.yes));
     await getClient().apps.stop(uuid);
     console.log(`Stopped ${uuid}`);
   });
@@ -155,8 +173,10 @@ apps
     console.log(`Restarted ${uuid}`);
   });
 
+registerAppsWriteCommands(apps, getClient);
+
 // ----------------------------------------------------------------
-// db
+// db (read + lifecycle)
 // ----------------------------------------------------------------
 
 const db = program.command("db").description("Database management");
@@ -166,7 +186,7 @@ db.command("list")
   .action(async () => {
     const g = program.opts<GlobalOpts>();
     const result = await listDatabases(getClient(), { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 db.command("get <uuid>")
@@ -174,7 +194,7 @@ db.command("get <uuid>")
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getDatabase(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 db.command("start <uuid>")
@@ -186,7 +206,9 @@ db.command("start <uuid>")
 
 db.command("stop <uuid>")
   .description("Stop a database")
-  .action(async (uuid: string) => {
+  .option("-y, --yes", "Skip confirmation")
+  .action(async (uuid: string, opts: { yes?: boolean }) => {
+    await confirmDestructive("stop database", uuid, Boolean(opts.yes));
     await getClient().db.stop(uuid);
     console.log(`Stopped ${uuid}`);
   });
@@ -197,6 +219,8 @@ db.command("restart <uuid>")
     await getClient().db.restart(uuid);
     console.log(`Restarted ${uuid}`);
   });
+
+registerDbWriteCommands(db, getClient);
 
 // ----------------------------------------------------------------
 // svc
@@ -210,7 +234,7 @@ svc
   .action(async () => {
     const g = program.opts<GlobalOpts>();
     const result = await listServices(getClient(), { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 svc
@@ -219,8 +243,10 @@ svc
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getService(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
+
+registerSvcWriteCommands(svc, getClient);
 
 // ----------------------------------------------------------------
 // deploy
@@ -238,7 +264,7 @@ deploy
       verbosity: resolveVerbosity(g),
       limit: opts.limit ? Number(opts.limit) : undefined,
     });
-    printResult(program, result);
+    printResult(result);
   });
 
 deploy
@@ -247,12 +273,12 @@ deploy
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getDeployment(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 deploy
   .command("trigger")
-  .description("Trigger a deploy (pass --uuid <app-uuid> or --tag <name>)")
+  .description("Trigger a deploy")
   .option("--uuid <uuid>", "Application UUID")
   .option("--tag <tag>", "Image tag")
   .option("--force", "Force rebuild")
@@ -273,7 +299,7 @@ server
   .action(async () => {
     const g = program.opts<GlobalOpts>();
     const result = await listServers(getClient(), { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 server
@@ -282,8 +308,10 @@ server
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getServer(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
+
+registerServerWriteCommands(server, getClient);
 
 // ----------------------------------------------------------------
 // project
@@ -297,7 +325,7 @@ project
   .action(async () => {
     const g = program.opts<GlobalOpts>();
     const result = await listProjects(getClient(), { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
 
 project
@@ -306,8 +334,10 @@ project
   .action(async (uuid: string) => {
     const g = program.opts<GlobalOpts>();
     const result = await getProject(getClient(), uuid, { verbosity: resolveVerbosity(g) });
-    printResult(program, result);
+    printResult(result);
   });
+
+registerProjectWriteCommands(project, getClient);
 
 // ----------------------------------------------------------------
 // search
@@ -316,7 +346,7 @@ project
 program
   .command("search <query>")
   .description("Smart search across apps/db/svc/servers/projects")
-  .option("--kind <kinds...>", "Filter kinds: application database service server project")
+  .option("--kind <kinds...>", "Filter kinds")
   .option("--limit <n>", "Max results", "20")
   .option("--threshold <n>", "Fuzzy threshold (0..1)", "0.4")
   .action(async (query: string, opts: { kind?: string[]; limit?: string; threshold?: string }) => {
@@ -326,19 +356,7 @@ program
       limit: opts.limit ? Number(opts.limit) : undefined,
       fuzzyThreshold: opts.threshold ? Number(opts.threshold) : undefined,
     });
-    printResult(program, result);
-  });
-
-// ----------------------------------------------------------------
-// init (stub)
-// ----------------------------------------------------------------
-
-program
-  .command("init")
-  .description("Interactive setup wizard (full wizard lands in PR #5)")
-  .action(() => {
-    console.log("coolify-11d init — interactive wizard not yet implemented.");
-    console.log("Set COOLIFY_BASE_URL and COOLIFY_TOKEN env vars for now.");
+    printResult(result);
   });
 
 // ----------------------------------------------------------------
