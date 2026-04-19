@@ -38,3 +38,6 @@ Thumbs.db
 # Runtime config (local)
 .coolify-11d/
 config.local.json
+
+# AI session memory (local-only, not for repo history)
+CLAUDE.md
